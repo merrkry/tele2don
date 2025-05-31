@@ -14,7 +14,7 @@ type telegramPlatform struct {
 	bot *bot.Bot
 }
 
-func (p *telegramPlatform) GetPlatformName() bridge.PlatformName {
+func (p *telegramPlatform) Name() bridge.PlatformName {
 	return bridge.PlatformTelegram
 }
 
@@ -36,16 +36,28 @@ func NewTelegramPlatform(ctx context.Context, cfg *config.Tele2donConfig, bridge
 }
 
 func handleUpdate(ctx context.Context, cfg *config.Tele2donConfig, targetChan chan bridge.BridgeUpdate, b *bot.Bot, update *models.Update) {
+	if update == nil {
+		return
+	}
 	slog.Debug("Received update from Telegram", "update", update)
-	if update != nil && update.ChannelPost != nil && update.ChannelPost.Chat.ID == cfg.TelegramChannelID {
+
+	if update.ChannelPost != nil && update.ChannelPost.Chat.ID == cfg.TelegramChannelID {
 		p := update.ChannelPost
 		if p.Text != "" {
-			slog.Debug("Converting message from Telegram", "text", p.Text)
-			slog.Debug("Channel status", "size", len(targetChan), "capacity", cap(targetChan))
+			slog.Debug("Converting message from Telegram", "text", p.Text, "id", p.ID)
 			targetChan <- bridge.NewMessage{
 				Text: p.Text,
 			}
-			slog.Debug("Message sent to bridge channel", "size", len(targetChan))
+		}
+	}
+
+	if update.EditedChannelPost != nil && update.EditedChannelPost.Chat.ID == cfg.TelegramChannelID {
+		p := update.EditedChannelPost
+		if p.Text != "" {
+			slog.Debug("Converting edit from Telegram", "text", p.Text, "id", p.ID)
+			targetChan <- bridge.NewMessage{
+				Text: p.Text,
+			}
 		}
 	}
 }

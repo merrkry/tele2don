@@ -8,6 +8,6 @@ const (
 )
 
 type Platform interface {
-	GetPlatformName() PlatformName
+	Name() PlatformName
 	ApplyUpdate(update BridgeUpdate) error
 }

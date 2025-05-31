@@ -9,5 +9,9 @@ type NewMessage struct {
 }
 
 func (m NewMessage) IsSupportedBy(platform Platform) bool {
-	return platform.GetPlatformName() == PlatformTelegram
+	return platform.Name() == PlatformTelegram
+}
+
+type MessageEdit struct {
+	Text string
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	b "github.com/merrkry/tele2don/internal/bridge"
 	"github.com/merrkry/tele2don/internal/config"
@@ -27,8 +26,6 @@ func StartBridge(ctx context.Context, cfg *config.Tele2donConfig) error {
 
 func handleUpdates(ctx context.Context, cfg *config.Tele2donConfig, bridgeUpdates chan b.BridgeUpdate, platforms *[]b.Platform) {
 	slog.Debug("Bridge update handler started.")
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -41,11 +38,9 @@ func handleUpdates(ctx context.Context, cfg *config.Tele2donConfig, bridgeUpdate
 				}
 				err := platform.ApplyUpdate(upd)
 				if err != nil {
-					slog.Error(fmt.Sprintf("Error applying update to %s", platform.GetPlatformName()), "err", err)
+					slog.Error(fmt.Sprintf("Error applying update to %s", platform.Name()), "err", err)
 				}
 			}
-		case <-ticker.C:
-			slog.Debug("Periodic tick, checking for updates.", "size", len(bridgeUpdates))
 		}
 	}
 }
