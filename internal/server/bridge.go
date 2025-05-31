@@ -7,6 +7,7 @@ import (
 
 	b "github.com/merrkry/tele2don/internal/bridge"
 	"github.com/merrkry/tele2don/internal/config"
+	"github.com/merrkry/tele2don/internal/mastodon"
 	"github.com/merrkry/tele2don/internal/telegram"
 )
 
@@ -56,6 +57,16 @@ func startPlatformWorkers(ctx context.Context, cfg *config.Tele2donConfig, bridg
 	} else {
 		platforms = append(platforms, telegramPlatform)
 		slog.Info("Telegram platform worker started successfully.")
+	}
+
+	slog.Info("Starting Mastodon platform worker.")
+	mastodonPlatform, err := mastodon.NewTelegramPlatform(ctx, cfg, bridgeChan)
+	if err != nil {
+		slog.Error("Failed to create Mastodon platform worker.", "err", err)
+		return nil, err
+	} else {
+		platforms = append(platforms, mastodonPlatform)
+		slog.Info("Mastodon platform worker started successfully.")
 	}
 
 	return &platforms, nil

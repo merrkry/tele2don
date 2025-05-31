@@ -7,6 +7,7 @@ import (
 )
 
 type Tele2donConfig struct {
+	MastodonServer       string
 	MastodonClientID     string
 	MastodonClientSecret string
 	MastodonAccessToken  string
@@ -23,13 +24,22 @@ func LoadConfig() (*Tele2donConfig, error) {
 	}
 	slog.SetLogLoggerLevel(logLevel)
 
+	mastodonServer := os.Getenv("MASTODON_SERVER")
+	if mastodonServer == "" {
+		mastodonServer = "https://mastodon.social"
+	}
+
 	telegramChannelID, _ := strconv.ParseInt(os.Getenv("TELEGRAM_CHANNEL_ID"), 10, 64)
 
-	return &Tele2donConfig{
+	result := &Tele2donConfig{
+		MastodonServer:       mastodonServer,
 		MastodonClientID:     os.Getenv("MASTODON_CLIENT_ID"),
 		MastodonClientSecret: os.Getenv("MASTODON_CLIENT_SECRET"),
 		MastodonAccessToken:  os.Getenv("MASTODON_ACCESS_TOKEN"),
 		TelegramBotToken:     os.Getenv("TELEGRAM_BOT_TOKEN"),
 		TelegramChannelID:    telegramChannelID,
-	}, nil
+	}
+
+	slog.Debug("Loaded configuration", "config", result)
+	return result, nil
 }
