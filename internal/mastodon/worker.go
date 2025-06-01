@@ -2,7 +2,9 @@ package mastodon
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"time"
 
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/mattn/go-mastodon"
@@ -41,14 +43,16 @@ func NewTelegramPlatform(ctx context.Context, cfg *config.Tele2donConfig, bridge
 		return nil, err
 	}
 
-	go handleStreaming(ctx, cfg, eventsChan, bridgeChan)
-
-	return &mastodonPlatform{
+	p := &mastodonPlatform{
 		client: client,
-	}, nil
+	}
+
+	go handleStreaming(ctx, cfg, eventsChan, bridgeChan, p)
+
+	return p, nil
 }
 
-func handleStreaming(ctx context.Context, cfg *config.Tele2donConfig, eventsChan chan mastodon.Event, bridgeChan chan bridge.BridgeUpdate) {
+func handleStreaming(ctx context.Context, cfg *config.Tele2donConfig, eventsChan chan mastodon.Event, bridgeChan chan bridge.BridgeUpdate, platform *mastodonPlatform) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -70,7 +74,9 @@ func handleStreaming(ctx context.Context, cfg *config.Tele2donConfig, eventsChan
 							continue
 						}
 						bridgeChan <- bridge.NewMessage{
-							Text: mdText,
+							Text:       mdText,
+							Origin:     platform,
+							Identifier: bridge.MessageIdentifier("m:" + s.ID),
 						}
 					}
 				}
@@ -80,6 +86,25 @@ func handleStreaming(ctx context.Context, cfg *config.Tele2donConfig, eventsChan
 	}
 }
 
-func (p *mastodonPlatform) ApplyUpdate(update bridge.BridgeUpdate) error {
-	return nil
+func (p *mastodonPlatform) ApplyUpdate(cfg *config.Tele2donConfig, update bridge.BridgeUpdate) (bridge.MessageIdentifier, error) {
+	if update == nil {
+		return bridge.NilMessageIdentifier, fmt.Errorf("update is nil")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	switch u := update.(type) {
+	case bridge.NewMessage:
+		var convertedText string = u.Text
+		status, err := p.client.PostStatus(ctx, &mastodon.Toot{
+			Status:     convertedText,
+			Visibility: "public",
+		})
+		if err != nil {
+			slog.Error("Failed to post status to Mastodon.", "err", err, "text", u.Text)
+			return bridge.NilMessageIdentifier, err
+		}
+		return bridge.MessageIdentifier("m:" + status.ID), nil
+	default:
+		return bridge.NilMessageIdentifier, fmt.Errorf("unsupported update type: %T", u)
+	}
 }

@@ -27,19 +27,30 @@ func StartBridge(ctx context.Context, cfg *config.Tele2donConfig) error {
 
 func handleUpdates(ctx context.Context, cfg *config.Tele2donConfig, bridgeUpdates chan b.BridgeUpdate, platforms *[]b.Platform) {
 	slog.Debug("Bridge update handler started.")
+
+	trackedUpdates := make(map[b.MessageIdentifier]struct{})
+
 	for {
 		select {
 		case <-ctx.Done():
 			slog.Info("Context done, stopping bridge.")
 		case upd := <-bridgeUpdates:
 			slog.Debug("Handling bridge update", "upd", upd)
+
+			if _, exits := trackedUpdates[upd.GetIdentifier()]; exits {
+				continue
+			}
+
 			for _, platform := range *platforms {
-				if !upd.IsSupportedBy(platform) {
+				if !upd.IsSupportedBy(platform) || upd.IsOrigin(platform) {
 					continue
 				}
-				err := platform.ApplyUpdate(upd)
+				id, err := platform.ApplyUpdate(cfg, upd)
 				if err != nil {
 					slog.Error(fmt.Sprintf("Error applying update to %s", platform.Name()), "err", err)
+				}
+				if id != b.NilMessageIdentifier {
+					trackedUpdates[id] = struct{}{}
 				}
 			}
 		}

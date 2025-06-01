@@ -1,5 +1,7 @@
 package bridge
 
+import "github.com/merrkry/tele2don/internal/config"
+
 type PlatformName string
 
 const (
@@ -9,5 +11,5 @@ const (
 
 type Platform interface {
 	Name() PlatformName
-	ApplyUpdate(update BridgeUpdate) error
+	ApplyUpdate(*config.Tele2donConfig, BridgeUpdate) (MessageIdentifier, error)
 }
